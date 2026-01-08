@@ -8,8 +8,16 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { config } from "./config.js";
+
+
 const PORT = 8080
 const app = express();
+
+// Middleware to parse JSON bodies (e.g., data from an API client like Postman)
+app.use(express.json());
+
+// Middleware to parse URL-encoded bodies (e.g., data from an HTML form)
+app.use(express.urlencoded({ extended: true }));
 
 app.use(middlewareLogResponses);
 app.use("/app", middlewareMetricsInc, express.static("./src/app"));
@@ -39,7 +47,7 @@ app.get("/admin/metrics", (req, res) => {
             )
 });
 
-app.get("/admin/reset", resetMetricsInc, (req, res) => {
+app.post("/admin/reset", resetMetricsInc, (req, res) => {
     res.set({"Content-Type": "text/html; charset=utf-8"});
  
     res.sendFile(path.join(__dirname, "../src/app/", "admin.html"), (err) => {
@@ -51,6 +59,25 @@ app.get("/admin/reset", resetMetricsInc, (req, res) => {
         }
     })
 })
+
+app.post("/api/validate_chirp", (req, res) => {
+    // console.log("req body", req.body)
+    const { body } = req.body
+    console.log("body ", body);
+
+    if (body.length <= 140) {
+        res.status(200).json({valid: true})
+    } else if (body.length > 140) {
+        res.status(400).json({error: "Chirp is too long"})
+    } 
+    else {
+        console.log("length ", body.length)
+        res.status(400).json({"error": "Something went wrong"})
+    }
+    
+    // res.send("ok")
+})
+
 
 app.listen(8080, () => {
     console.log(`Server listening on Port ${PORT}`)
