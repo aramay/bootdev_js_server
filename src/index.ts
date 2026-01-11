@@ -8,16 +8,16 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { config } from "./config.js";
-
+import type { Request, Response } from "express";
 
 const PORT = 8080
 const app = express();
 
 // Middleware to parse JSON bodies (e.g., data from an API client like Postman)
-app.use(express.json());
+// app.use(express.json());
 
 // Middleware to parse URL-encoded bodies (e.g., data from an HTML form)
-app.use(express.urlencoded({ extended: true }));
+// app.use(express.urlencoded({ extended: true }));
 
 app.use(middlewareLogResponses);
 app.use("/app", middlewareMetricsInc, express.static("./src/app"));
@@ -60,6 +60,66 @@ app.post("/admin/reset", resetMetricsInc, (req, res) => {
     })
 })
 
+app.post("/api/validate_chirp", (req:Request, res:Response) => {
+    console.log("api/validate_chirp")
+    let rawData = ""
+    // ensure chucks are treated as strings
+    req.setEncoding("utf-8");
+    
+    type responseData = {
+        body: string;
+    }
+
+    const parsedBody:responseData = {
+        body: ""
+    }
+
+    // listen for data events
+    req.on("data", (chunk) => {
+        console.log("chunk ", chunk)
+        console.log("parsedBody" , parsedBody)
+        rawData += chunk
+        console.log("rawData " , rawData)
+
+    })
+
+    // listen for end events
+    req.on("end", () => {
+        try {
+            // res.header("Content-Type", "application/json");
+            // let body = JSON.parse(body)
+            // console.log(body)
+            // console.log(typeof body)
+            const data = JSON.parse(rawData);
+            console.log(" data ", data)
+            parsedBody.body = data.body;
+            console.log("parsedBody" , parsedBody)
+            console.log("parsedBody" , parsedBody.body)
+            console.log("parsedBody.body.length" , parsedBody.body.length)
+            if (parsedBody.body.length <= 140) {
+                res.status(200).json({valid: true})
+            }
+            else if (parsedBody.body.length > 140) {
+                res.status(400).json({error: "Chirp is too long"})
+            }
+            else {
+                res.status(400).json({"error": "Something went wrong"})
+            }
+            
+        } catch(err) {
+            // res.header("Content-Type", "application/json");
+            console.log("error in catch ", err)
+            return res.status(400).send("invalid json ")
+        }
+    })
+
+    // req.on("end", (err) => {
+    //     console.error("request err ", err)
+    //     return res.status(500).send("Error processing request");
+    // })
+})
+
+/**.
 app.post("/api/validate_chirp", (req, res) => {
     // console.log("req body", req.body)
     const { body } = req.body
@@ -77,7 +137,7 @@ app.post("/api/validate_chirp", (req, res) => {
     
     // res.send("ok")
 })
-
+ */
 
 app.listen(8080, () => {
     console.log(`Server listening on Port ${PORT}`)
