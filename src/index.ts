@@ -74,6 +74,8 @@ app.post("/api/validate_chirp", (req:Request, res:Response) => {
         body: ""
     }
 
+    const profaneWords = ["kerfuffle", "sharbert", "fornax"]
+
     // listen for data events
     req.on("data", (chunk) => {
         console.log("chunk ", chunk)
@@ -93,11 +95,19 @@ app.post("/api/validate_chirp", (req:Request, res:Response) => {
             const data = JSON.parse(rawData);
             console.log(" data ", data)
             parsedBody.body = data.body;
-            console.log("parsedBody" , parsedBody)
-            console.log("parsedBody" , parsedBody.body)
-            console.log("parsedBody.body.length" , parsedBody.body.length)
+            // console.log("parsedBody" , parsedBody)
+            // console.log("parsedBody" , parsedBody.body)
+            // console.log("parsedBody.body.length" , parsedBody.body.length)
             if (parsedBody.body.length <= 140) {
-                res.status(200).json({valid: true})
+                // res.status(200).json({valid: true})
+                for (const word of profaneWords) {
+                    
+                    if (parsedBody.body.toLowerCase().includes(word.toLowerCase())) {
+                        const regex = new RegExp(word, "i")
+                        parsedBody.body = parsedBody.body.replace(regex, "****") 
+                    }
+                }
+                res.status(200).json({cleanedBody: parsedBody.body})
             }
             else if (parsedBody.body.length > 140) {
                 res.status(400).json({error: "Chirp is too long"})
