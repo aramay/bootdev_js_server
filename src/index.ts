@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { config } from "./config.js";
-import type { Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 
 const PORT = 8080
 const app = express();
@@ -21,13 +21,13 @@ const app = express();
 
 app.use(middlewareLogResponses);
 app.use("/app", middlewareMetricsInc, express.static("./src/app"));
-
+app.use(errorHandler);
 
 app.get("/api/healthz", handlerReadiness);
 
 app.get("/users", middlewareLogResponses);
 
-app.get('/api/metrics', getMetricsInc);
+app.get("/api/metrics", getMetricsInc);
 
 app.get("/api/reset", resetMetricsInc);
 
@@ -60,9 +60,9 @@ app.post("/admin/reset", resetMetricsInc, (req, res) => {
     })
 })
 
-app.post("/api/validate_chirp", (req:Request, res:Response) => {
+app.post("/api/validate_chirp", (req:Request, res:Response, next: NextFunction) => {
     console.log("api/validate_chirp")
-    let rawData = ""
+    let rawData:string = ""
     // ensure chucks are treated as strings
     req.setEncoding("utf-8");
     
@@ -110,16 +110,20 @@ app.post("/api/validate_chirp", (req:Request, res:Response) => {
                 res.status(200).json({cleanedBody: parsedBody.body})
             }
             else if (parsedBody.body.length > 140) {
-                res.status(400).json({error: "Chirp is too long"})
+                // res.status(400).json({error: "Chirp is too long"})
+                throw new Error("Something went wrong on our end")
+                
             }
             else {
-                res.status(400).json({"error": "Something went wrong"})
+                // res.status(400).json({"error": "Something went wrong"})
+                throw new Error("Something went wrong on our end")
             }
             
         } catch(err) {
             // res.header("Content-Type", "application/json");
             console.log("error in catch ", err)
-            return res.status(400).send("invalid json ")
+            // return res.status(400).send("invalid json ")
+            next(err)
         }
     })
 
@@ -148,6 +152,17 @@ app.post("/api/validate_chirp", (req, res) => {
     // res.send("ok")
 })
  */
+function errorHandler(
+    err: Error,
+    req: Request,
+    res: Response,
+    next: NextFunction
+) {
+    console.log("Something went wrong on our end")
+    res.status(500).json({
+        error: "Something went wrong on our end"
+    })
+}
 
 app.listen(8080, () => {
     console.log(`Server listening on Port ${PORT}`)
