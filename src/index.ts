@@ -1,5 +1,5 @@
 import express from "express"
-import { middlewareLogResponses } from "./api/middlewareLog.js";
+import { middlewareLogResponses } from "./api/middleware.js";
 import { handlerReadiness } from "./api/handleReadiness.js"
 import { middlewareMetricsInc } from "./api/middlewareMetricsInc.js";
 import { getMetricsInc, resetMetricsInc } from "./api/handleMetrics.js";
@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { config } from "./config.js";
 import type { NextFunction, Request, Response } from "express";
-import { param } from "cypress/types/jquery/index.js";
+import { BadRequestError } from "./api/errors.js";
 
 const PORT = 8080
 const app = express();
@@ -19,10 +19,11 @@ app.use(express.json());
 
 // Middleware to parse URL-encoded bodies (e.g., data from an HTML form)
 app.use(express.urlencoded({ extended: true }));
-
+// app.use(errorHandler);
 app.use(middlewareLogResponses);
+
 app.use("/app", middlewareMetricsInc, express.static("./src/app"));
-app.use(errorHandler);
+
 
 app.get("/api/healthz", handlerReadiness);
 
@@ -69,37 +70,27 @@ app.post("/api/validate_chirp", async (req:Request, res:Response, next:NextFunct
     }
     const profane = ["kerfuffle", "sharbert", "fornax"]
     
-    const params: reqData = req.body
-    let { body } = params
+    let { body } = req.body as reqData
     
-    console.log("body ", params);
-    
-    try {
-        if (body.length <= 140) {
-            for (const word of profane) {
-                if (body.toLowerCase().includes(word.toLowerCase())) {
-                    const regex = new RegExp(word, "i")
-                    body = body.replace(regex, "****")
-                }
-            }
-            res.status(200).json({cleanedBody: body})
-        } 
-        else if (body.length > 140) {
-            console.log("else if block \n");
-            res.status(500).json({error: "Something went wrong on our end"})
-            // next()
-            
-            // throw new Error("Something went wrong on our end")
-        } 
-        else {
-            console.log("length ", body.length)
-            // res.status(400).json({"error": "Something went wrong"})
-            throw new Error("Something went wrong on our end");
 
+    try {
+        if (!body) {
+            throw new BadRequestError("Chirp body missing");
         }
-        // else {
-            //     throw new Error()
-        // }
+        
+        if (body.length > 140) {
+            console.log("else if block \n");
+            // res.status(400).json({error: "Chirp is too long. Max length is 140"})
+            throw new BadRequestError("Chirp is too long. Max length is 140")
+        }
+        // Logic for cleaning the chirp
+        let cleanedBody = body
+        for (const word of profane) {
+            // Added 'g' flag for global replacement and 'i' for case-insensitivity
+            const regex = new RegExp(word, "gi")
+            body = body.replace(regex, "****")
+        }
+        res.status(200).json({cleanedBody}) 
     } catch(err) {
         console.log("Something went wrong on our end")
         next(err)
@@ -177,18 +168,26 @@ next(err)
 })
 */
 
+console.log("BadRequestError ", BadRequestError)
+
 
 function errorHandler(
     err: Error,
-    req: Request,
+    _: Request,
     res: Response,
-    next: NextFunction
+    __: NextFunction
 ) {
     console.log("Something went wrong on our end")
-    res.status(500).json({
-        error: err.message
-    })
+    if (err instanceof BadRequestError) {
+        // res.header("Content-Type", "application/json");
+        console.log("BadRequestError \n")
+        res.status(400).json({error: err.message})
+    }
+    // res.status(500).json({
+    //     error: err.message
+    // })
 }
+app.use(errorHandler)
 
 app.listen(8080, () => {
     console.log(`Server listening on Port ${PORT}`)
