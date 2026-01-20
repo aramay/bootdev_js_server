@@ -11,6 +11,16 @@ import { config } from "./config.js";
 import type { NextFunction, Request, Response } from "express";
 import { BadRequestError } from "./api/errors.js";
 
+import postgres from "postgres";
+import { migrate } from "drizzle-orm/postgres-js/migrator";
+import { drizzle } from "drizzle-orm/postgres-js";
+
+const migrationClient = postgres(config.db.dbURL , { max: 1 });
+await migrate(drizzle(migrationClient), config.db.migrationConfig);
+
+import { createUser } from "./db/queries/users.js";
+import { NewUser } from "./db/schema.js"
+
 const PORT = 8080
 const app = express();
 
@@ -43,7 +53,7 @@ app.get("/admin/metrics", (req, res) => {
     res.send(`<html>
                 <body>
                     <h1>Welcome, Chirpy Admin</h1>
-                    <p>Chirpy has been visited ${config.fileServerHits} times!</p>
+                    <p>Chirpy has been visited ${config.api.fileServerHits} times!</p>
                 </body>
                 </html>`
     )
@@ -88,7 +98,7 @@ app.post("/api/validate_chirp", async (req:Request, res:Response, next:NextFunct
         for (const word of profane) {
             // Added 'g' flag for global replacement and 'i' for case-insensitivity
             const regex = new RegExp(word, "gi")
-            body = body.replace(regex, "****")
+            cleanedBody = body.replace(regex, "****")
         }
         res.status(200).json({cleanedBody}) 
     } catch(err) {
@@ -97,6 +107,20 @@ app.post("/api/validate_chirp", async (req:Request, res:Response, next:NextFunct
     }
 })
 
+app.post("/api/users", async (req, res, next) => {
+    let { email } = req.body as NewUser
+    let results = {}
+
+    try {
+        let results = await createUser({email})
+        res.send(201).json(results)
+    } catch(err) {
+        console.log("Error creating user ")
+        next(err)
+        
+    }
+
+})
 
 /*
 app.post("/api/validate_chirp", (req:Request, res:Response, next: NextFunction) => {
@@ -189,7 +213,7 @@ function errorHandler(
 }
 app.use(errorHandler)
 
-app.listen(8080, () => {
+app.listen(PORT, () => {
     console.log(`Server listening on Port ${PORT}`)
 })
 
