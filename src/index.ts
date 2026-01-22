@@ -20,6 +20,7 @@ await migrate(drizzle(migrationClient), config.db.migrationConfig);
 
 import { createUser } from "./db/queries/users.js";
 import { NewUser } from "./db/schema.js"
+import { deleteUser } from "./db/queries/delete.js";
 
 const PORT = 8080
 const app = express();
@@ -59,6 +60,23 @@ app.get("/admin/metrics", (req, res) => {
     )
 });
 
+
+app.post("/admin/reset", async (req, res, next) => {
+    if (config.api.env !== "dev") {
+        // extremely dangerous endpoint can only be accessed in a local development environment.
+        res.status(403).send("Forbidden")
+    } 
+    else {
+        try {
+            await deleteUser()
+            res.set(200).send("OK")
+        } catch (err) {
+            console.log("Something went wrong in deleteUser")
+            next(err)
+        }
+    }
+})
+/*
 app.post("/admin/reset", resetMetricsInc, (req, res) => {
     res.set({"Content-Type": "text/html; charset=utf-8"});
     
@@ -71,7 +89,7 @@ app.post("/admin/reset", resetMetricsInc, (req, res) => {
         }
     })
 })
-
+*/
 
 app.post("/api/validate_chirp", async (req:Request, res:Response, next:NextFunction) => {
     // console.log("req body", req.body)
@@ -110,16 +128,17 @@ app.post("/api/validate_chirp", async (req:Request, res:Response, next:NextFunct
 app.post("/api/users", async (req, res, next) => {
     let { email } = req.body as NewUser
     let results = {}
+    console.log("email ", email)
 
     try {
-        let results = await createUser({email})
-        res.send(201).json(results)
+        results = await createUser({email})
+        console.log("results ", results)
+        res.status(201).json(results)
     } catch(err) {
         console.log("Error creating user ")
         next(err)
         
     }
-
 })
 
 /*
@@ -192,8 +211,6 @@ next(err)
 })
 */
 
-console.log("BadRequestError ", BadRequestError)
-
 
 function errorHandler(
     err: Error,
@@ -203,13 +220,9 @@ function errorHandler(
 ) {
     console.log("Something went wrong on our end")
     if (err instanceof BadRequestError) {
-        // res.header("Content-Type", "application/json");
         console.log("BadRequestError \n")
-        res.status(400).json({error: err.message})
+        res.status(400).json({error: err})
     }
-    // res.status(500).json({
-    //     error: err.message
-    // })
 }
 app.use(errorHandler)
 
