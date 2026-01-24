@@ -21,3 +21,10 @@ export async function createChirps(chirp: NewChirp) {
 
     return result;
 }
+
+export async function getChirps() {
+    const results = await db
+        .query.chirps.findMany()
+
+    return results
+}

@@ -18,9 +18,8 @@ import { drizzle } from "drizzle-orm/postgres-js";
 const migrationClient = postgres(config.db.dbURL , { max: 1 });
 await migrate(drizzle(migrationClient), config.db.migrationConfig);
 
-import { createChirps, createUser } from "./db/queries/users.js";
+import { createChirps, createUser, getChirps } from "./db/queries/users.js";
 import { deleteUser } from "./db/queries/delete.js";
-import { param } from "cypress/types/jquery/index.js";
 
 const PORT = 8080
 const app = express();
@@ -30,7 +29,7 @@ app.use(express.json());
 
 // Middleware to parse URL-encoded bodies (e.g., data from an HTML form)
 app.use(express.urlencoded({ extended: true }));
-// app.use(errorHandler);
+
 app.use(middlewareLogResponses);
 
 app.use("/app", middlewareMetricsInc, express.static("./src/app"));
@@ -90,6 +89,17 @@ console.error(`Error in sendFile ${err}`)
 })
 })
 */
+
+app.get("/api/chirps", async (_: Request, res: Response, next: NextFunction) => {
+
+    try {
+        const chirps = await getChirps();
+        res.status(200).json(chirps)
+    } catch(err) {
+        console.log("Error getting chirps - /api/chirps")
+        next(err)
+    }
+})
 
 app.post("/api/chirps", async (req:Request, res:Response, next:NextFunction) => {
     // console.log("req body", req.body)
