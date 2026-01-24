@@ -18,9 +18,9 @@ import { drizzle } from "drizzle-orm/postgres-js";
 const migrationClient = postgres(config.db.dbURL , { max: 1 });
 await migrate(drizzle(migrationClient), config.db.migrationConfig);
 
-import { createUser } from "./db/queries/users.js";
-import { NewUser } from "./db/schema.js"
+import { createChirps, createUser } from "./db/queries/users.js";
 import { deleteUser } from "./db/queries/delete.js";
+import { param } from "cypress/types/jquery/index.js";
 
 const PORT = 8080
 const app = express();
@@ -78,62 +78,59 @@ app.post("/admin/reset", async (req, res, next) => {
 })
 /*
 app.post("/admin/reset", resetMetricsInc, (req, res) => {
-    res.set({"Content-Type": "text/html; charset=utf-8"});
-    
-    res.sendFile(path.join(__dirname, "../src/app/", "admin.html"), (err) => {
-        // console.log("admin/metrics" , path.join("admin.html", __dirname, '../src/app/'))
-        if (err) {
-            console.error(`Error in sendFile ${err}`)
-        } else {
-            console.log(`File sent successfully`);
-        }
-    })
+res.set({"Content-Type": "text/html; charset=utf-8"});
+
+res.sendFile(path.join(__dirname, "../src/app/", "admin.html"), (err) => {
+// console.log("admin/metrics" , path.join("admin.html", __dirname, '../src/app/'))
+if (err) {
+console.error(`Error in sendFile ${err}`)
+} else {
+    console.log(`File sent successfully`);
+}
+})
 })
 */
 
-app.post("/api/validate_chirp", async (req:Request, res:Response, next:NextFunction) => {
+app.post("/api/chirps", async (req:Request, res:Response, next:NextFunction) => {
     // console.log("req body", req.body)
     type reqData = {
-        body: string
+        body: string;
+        userId: string
     }
-    const profane = ["kerfuffle", "sharbert", "fornax"]
     
-    let { body } = req.body as reqData
+    let params: reqData = req.body
     
+    console.log("params ", params)
 
-    try {
-        if (!body) {
-            throw new BadRequestError("Chirp body missing");
-        }
+    if (!params.body || !params.userId) {
+        return next(new BadRequestError("Chirp body missing"))
+    }
+    
+    try {    
+        const chirp = await createChirps({ body: params.body, userId: params.userId })
+        console.log("chirps ", chirp)
         
-        if (body.length > 140) {
-            console.log("else if block \n");
-            // res.status(400).json({error: "Chirp is too long. Max length is 140"})
-            throw new BadRequestError("Chirp is too long. Max length is 140")
-        }
-        // Logic for cleaning the chirp
-        let cleanedBody = body
-        for (const word of profane) {
-            // Added 'g' flag for global replacement and 'i' for case-insensitivity
-            const regex = new RegExp(word, "gi")
-            cleanedBody = body.replace(regex, "****")
-        }
-        res.status(200).json({cleanedBody}) 
+        return res.status(201).json(chirp)
     } catch(err) {
-        console.log("Something went wrong on our end")
+        console.log("Something went wrong on our end - /api/chirps")
         next(err)
     }
 })
 
 app.post("/api/users", async (req, res, next) => {
-    let { email } = req.body as NewUser
-    let results = {}
-    console.log("email ", email)
-
+    type parameter = {
+        email: string
+    }
+    const params: parameter = req.body
+    
+    if (!params.email) {
+        throw new BadRequestError("Missing required field - email")
+    }
+    
     try {
-        results = await createUser({email})
-        console.log("results ", results)
-        res.status(201).json(results)
+        const user = await createUser({email: params.email})
+        console.log("results ", user)
+        res.status(201).json(user)
     } catch(err) {
         console.log("Error creating user ")
         next(err)
@@ -218,11 +215,19 @@ function errorHandler(
     res: Response,
     __: NextFunction
 ) {
-    console.log("Something went wrong on our end")
     if (err instanceof BadRequestError) {
         console.log("BadRequestError \n")
-        res.status(400).json({error: err})
+        res.status(400).json({error: err.message})
     }
+    console.log("An unexpected error occured \n")
+    if (!res.headersSent) {
+        console.log("Error - !res.headersSent ", err.message)
+        return res.status(500).json({ 
+            error: "An unexpected server error occurred." 
+        });
+    }
+    console.log("Error ", err.message)
+    res.status(500).json({error: "An unexpected error occured"})
 }
 app.use(errorHandler)
 

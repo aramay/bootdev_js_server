@@ -1,0 +1,36 @@
+
+
+
+app.post("/api/validate_chirp", async (req:Request, res:Response, next:NextFunction) => {
+    // console.log("req body", req.body)
+    type reqData = {
+        body: string
+    }
+    const profane = ["kerfuffle", "sharbert", "fornax"]
+    
+    let { body } = req.body as reqData
+    
+
+    try {
+        if (!body) {
+            throw new BadRequestError("Chirp body missing");
+        }
+        
+        if (body.length > 140) {
+            console.log("else if block \n");
+            // res.status(400).json({error: "Chirp is too long. Max length is 140"})
+            throw new BadRequestError("Chirp is too long. Max length is 140")
+        }
+        // Logic for cleaning the chirp
+        let cleanedBody = body
+        for (const word of profane) {
+            // Added 'g' flag for global replacement and 'i' for case-insensitivity
+            const regex = new RegExp(word, "gi")
+            cleanedBody = body.replace(regex, "****")
+        }
+        res.status(200).json({cleanedBody}) 
+    } catch(err) {
+        console.log("Something went wrong on our end")
+        next(err)
+    }
+})
