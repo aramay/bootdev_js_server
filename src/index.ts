@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { config } from "./config.js";
 import type { NextFunction, Request, Response } from "express";
-import { BadRequestError } from "./api/errors.js";
+import { BadRequestError, NotFoundError } from "./api/errors.js";
 
 import postgres from "postgres";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
@@ -18,7 +18,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 const migrationClient = postgres(config.db.dbURL , { max: 1 });
 await migrate(drizzle(migrationClient), config.db.migrationConfig);
 
-import { createChirps, createUser, getChirps } from "./db/queries/users.js";
+import { createChirps, createUser, getChirpByID, getChirps } from "./db/queries/users.js";
 import { deleteUser } from "./db/queries/delete.js";
 
 const PORT = 8080
@@ -46,6 +46,27 @@ app.get("/api/reset", resetMetricsInc);
 // console.log("path.join", path.join("./src/app/"))
 // console.log("__dirname", path.join( __dirname, "../src/app/", "admin.html"));
 // console.log("__dirname /src/app", { root: path.join(__dirname, '../src/app/') });
+
+app.get("/api/chirps/:chirpID", async (req: Request, res: Response, next: NextFunction) => {
+    type Parameters = {
+        chirpID: string;
+    }
+
+    let { chirpID } = req.params as Parameters
+    console.log("chirpID ", chirpID)
+    try {
+        let chirpByID = await getChirpByID(chirpID)
+
+        if (!chirpByID) {
+            // res.status(404).send("not ok")
+            return next(new NotFoundError(`Error - Could find chirp with ID - ${chirpByID}`))
+        }
+        res.status(200).json(chirpByID)
+    } catch(err) {
+        console.log("Error getting a chirps - /api/chirp/:chirdID")
+        next(err)
+    }
+})
 
 app.get("/admin/metrics", (req, res) => {
     

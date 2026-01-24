@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { db } from "../index.js";
 import { NewChirp, chirps, NewUser, users } from "../schema.js";
 
@@ -27,4 +28,15 @@ export async function getChirps() {
         .query.chirps.findMany()
 
     return results
+}
+
+export async function getChirpByID(chirdID: string) {
+    
+    const [result] = await db
+        .select()
+        .from(chirps)
+        .where(eq(chirps.id, chirdID))
+
+        console.log("result ", result)
+    return result;
 }

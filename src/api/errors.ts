@@ -4,4 +4,10 @@ class BadRequestError extends Error {
     }
 }
 
-export { BadRequestError };
+class NotFoundError extends Error {
+    constructor(message: string) {
+        super(message)
+    }
+}
+
+export { BadRequestError, NotFoundError };
