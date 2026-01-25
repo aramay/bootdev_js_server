@@ -3,12 +3,15 @@ import { db } from "../index.js";
 import { NewChirp, chirps, NewUser, users } from "../schema.js";
 
 export async function createUser(user: NewUser) {
+
     const [result] = await db
         .insert(users)
         .values(user)
         .onConflictDoNothing()
         .returning();
-    return result;
+    
+    const { hashPassword, ...userDataWithoutHashPassword } = result
+    return userDataWithoutHashPassword;
 
 }
 
@@ -39,4 +42,13 @@ export async function getChirpByID(chirdID: string) {
 
         console.log("result ", result)
     return result;
+}
+
+export async function lookupUserByEmail(email: string) {
+    const [result] = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, email))
+
+    return result
 }

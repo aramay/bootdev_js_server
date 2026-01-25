@@ -11,15 +11,17 @@ import { config } from "./config.js";
 import type { NextFunction, Request, Response } from "express";
 import { BadRequestError, NotFoundError } from "./api/errors.js";
 
-import postgres from "postgres";
+import postgres, { Parameter, ParameterOrFragment } from "postgres";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { drizzle } from "drizzle-orm/postgres-js";
 
 const migrationClient = postgres(config.db.dbURL , { max: 1 });
 await migrate(drizzle(migrationClient), config.db.migrationConfig);
 
-import { createChirps, createUser, getChirpByID, getChirps } from "./db/queries/users.js";
+import { createChirps, createUser, getChirpByID, getChirps, lookupUserByEmail } from "./db/queries/users.js";
 import { deleteUser } from "./db/queries/delete.js";
+import { checkPasswordHash, hashPassword } from "./app/auth.js";
+import { NewUser } from "./db/schema.js";
 
 const PORT = 8080
 const app = express();
@@ -150,16 +152,28 @@ app.post("/api/chirps", async (req:Request, res:Response, next:NextFunction) => 
 
 app.post("/api/users", async (req, res, next) => {
     type parameter = {
-        email: string
+        email: string;
+        password: string;
     }
-    const params: parameter = req.body
+
+    let hashedPasswd = ""
+
+    const { email, password } = req.body as parameter
     
-    if (!params.email) {
-        throw new BadRequestError("Missing required field - email")
+    if (!email || !password) {
+        throw new BadRequestError("Missing required field - email or password")
+    }
+
+    try {
+        hashedPasswd = await hashPassword(password)
+    } catch (err) {
+        console.log("Something went wrong while hashing the password")
+        next(err)
     }
     
     try {
-        const user = await createUser({email: params.email})
+        const user = await createUser({email, hashPassword: hashedPasswd})
+        // type tempUser = Omit<typeof user, "hashPassword">
         console.log("results ", user)
         res.status(201).json(user)
     } catch(err) {
@@ -167,6 +181,48 @@ app.post("/api/users", async (req, res, next) => {
         next(err)
         
     }
+})
+
+app.post("/api/login", async (req: Request, res: Response, next: NextFunction) => {
+    
+    type Parameters = {
+        email: string,
+        password: string
+    }
+
+    console.log(req.body)
+
+    const { email, password } = req.body as Parameters
+
+    let user = await lookupUserByEmail(email)
+
+    const verified = await checkPasswordHash(user.hashPassword, password)
+    
+    if (!user || !verified) {
+        res.status(401).send("Incorrect email or password")
+    } 
+    else {
+        res.status(200).json(user)
+    }
+
+    // console.log(user)
+    // try {
+    //     const verified = await checkPasswordHash(user.hashPassword, password)
+    //     console.log(verified)
+    // } catch (err) {
+    //     console.log("Error verifying password")
+    // }
+
+   
+
+    // res.status(200).json(user)
+
+     // try {
+    //     user 
+    // } catch(err) {
+    //     next(err)
+    // }
+    
 })
 
 /*

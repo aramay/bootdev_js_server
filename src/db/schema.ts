@@ -1,3 +1,4 @@
+import { InferInsertModel } from "drizzle-orm";
 import { pgTable, timestamp, varchar, uuid } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -8,9 +9,12 @@ export const users = pgTable("users", {
         .defaultNow()
         .$onUpdate(() => new Date()),
     email: varchar("email", {length: 256 }).unique().notNull(),
+    hashPassword: varchar("hash_password").notNull().default("unset")
 })
 
 export type NewUser = typeof users.$inferInsert;
+
+// export type safeUser = Omit<NewUser, "hashPassword">
 
 export const chirps = pgTable("chirps", {
     id: uuid("id").primaryKey().defaultRandom(),
