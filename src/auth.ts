@@ -1,6 +1,5 @@
-// import { argon2d } from "argon2";
-import * as argon2 from "argon2"
-// const argon2 = require("argon2")
+import * as argon2 from "argon2";
+
 export async function hashPassword(passwd: string) {
 
     try {
@@ -16,13 +15,15 @@ export async function hashPassword(passwd: string) {
 export async function checkPasswordHash(hash: string, passwd: string) {
 
     try {
-        if (await argon2.verify(hash, passwd)) {
-            return true;
-        } 
-        else {
-            console.log("Password did not match")
-            return false;
-        }
+        return (await argon2.verify(hash, passwd)) ? true : false
+        
+        // if (await argon2.verify(hash, passwd)) {
+        //     return true;
+        // } 
+        // else {
+        //     console.log("Password did not match")
+        //     return false;
+        // }
     } catch(err) {
         throw new Error("verifying password failed")
     }

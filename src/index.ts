@@ -18,9 +18,9 @@ import { drizzle } from "drizzle-orm/postgres-js";
 const migrationClient = postgres(config.db.dbURL , { max: 1 });
 await migrate(drizzle(migrationClient), config.db.migrationConfig);
 
-import { createChirps, createUser, getChirpByID, getChirps, lookupUserByEmail } from "./db/queries/users.js";
+import { createChirps, createUser, getChirpByID, getChirps, getUserByEmail } from "./db/queries/users.js";
 import { deleteUser } from "./db/queries/delete.js";
-import { checkPasswordHash, hashPassword } from "./app/auth.js";
+import { checkPasswordHash, hashPassword } from "./auth.js";
 import { NewUser } from "./db/schema.js";
 
 const PORT = 8080
@@ -194,7 +194,9 @@ app.post("/api/login", async (req: Request, res: Response, next: NextFunction) =
 
     const { email, password } = req.body as Parameters
 
-    let user = await lookupUserByEmail(email)
+    let user = await getUserByEmail(email)
+
+    console.log("user ", user)
 
     const verified = await checkPasswordHash(user.hashPassword, password)
     

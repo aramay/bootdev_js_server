@@ -44,7 +44,7 @@ export async function getChirpByID(chirdID: string) {
     return result;
 }
 
-export async function lookupUserByEmail(email: string) {
+export async function getUserByEmail(email: string) {
     const [result] = await db
         .select()
         .from(users)
