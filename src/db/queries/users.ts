@@ -10,8 +10,9 @@ export async function createUser(user: NewUser) {
         .onConflictDoNothing()
         .returning();
     
-    const { hashPassword, ...userDataWithoutHashPassword } = result
-    return userDataWithoutHashPassword;
+    // const { hashPassword, ...userDataWithoutHashPassword } = result
+    // return userDataWithoutHashPassword;
+    return result
 
 }
 

@@ -11,7 +11,7 @@ import { config } from "./config.js";
 import type { NextFunction, Request, Response } from "express";
 import { BadRequestError, NotFoundError } from "./api/errors.js";
 
-import postgres, { Parameter, ParameterOrFragment } from "postgres";
+import postgres from "postgres";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { drizzle } from "drizzle-orm/postgres-js";
 
@@ -22,6 +22,7 @@ import { createChirps, createUser, getChirpByID, getChirps, getUserByEmail } fro
 import { deleteUser } from "./db/queries/delete.js";
 import { checkPasswordHash, hashPassword } from "./auth.js";
 import { NewUser } from "./db/schema.js";
+import { handleCreateUser } from "./api/users.js";
 
 const PORT = 8080
 const app = express();
@@ -150,6 +151,9 @@ app.post("/api/chirps", async (req:Request, res:Response, next:NextFunction) => 
     }
 })
 
+app.post("/api/users", handleCreateUser)
+
+/*
 app.post("/api/users", async (req, res, next) => {
     type parameter = {
         email: string;
@@ -182,6 +186,7 @@ app.post("/api/users", async (req, res, next) => {
         
     }
 })
+*/
 
 app.post("/api/login", async (req: Request, res: Response, next: NextFunction) => {
     
