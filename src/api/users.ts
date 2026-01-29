@@ -30,7 +30,7 @@ export async function handleCreateUser(req: Request, res: Response) {
         throw new Error("Could not create User")
     }
 
-    res.status(200).json({
+    res.status(201).json({
         id: user.id,
         email: user.email,
         createdAt: user.createdAt,

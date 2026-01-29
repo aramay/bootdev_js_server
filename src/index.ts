@@ -20,9 +20,11 @@ await migrate(drizzle(migrationClient), config.db.migrationConfig);
 
 import { createChirps, createUser, getChirpByID, getChirps, getUserByEmail } from "./db/queries/users.js";
 import { deleteUser } from "./db/queries/delete.js";
-import { checkPasswordHash, hashPassword } from "./auth.js";
+import { checkPasswordHash, getBearerToken, hashPassword, makeJWT, validateJWT } from "./auth.js";
 import { NewUser } from "./db/schema.js";
 import { handleCreateUser } from "./api/users.js";
+import { converStringToMS } from "./utils.js";
+
 
 const PORT = 8080
 const app = express();
@@ -131,8 +133,16 @@ app.post("/api/chirps", async (req:Request, res:Response, next:NextFunction) => 
         body: string;
         userId: string
     }
+
+    const authToken = getBearerToken(req)
     
     let params: reqData = req.body
+
+    let userID = validateJWT(authToken, config.api.JWTSecret)
+
+    if (userID) {
+        params.userId = userID
+    }
     
     console.log("params ", params)
 
@@ -192,12 +202,14 @@ app.post("/api/login", async (req: Request, res: Response, next: NextFunction) =
     
     type Parameters = {
         email: string,
-        password: string
+        password: string,
+        expiresInSeconds?: number
     }
 
     console.log(req.body)
+    converStringToMS("1 h")
 
-    const { email, password } = req.body as Parameters
+    const { email, password, expiresInSeconds = converStringToMS("1 h")} = req.body as Parameters
 
     let user = await getUserByEmail(email)
 
@@ -209,7 +221,15 @@ app.post("/api/login", async (req: Request, res: Response, next: NextFunction) =
         res.status(401).send("Incorrect email or password")
     } 
     else {
-        res.status(200).json(user)
+        const token = makeJWT(user.id, expiresInSeconds, config.api.JWTSecret) 
+        res.status(200).json({
+            id: user.id,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt,
+            email: user.email,
+            token: token
+        })
+        // next(user)
     }
 
     // console.log(user)

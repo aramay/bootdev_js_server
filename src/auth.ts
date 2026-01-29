@@ -1,6 +1,8 @@
 import * as argon2 from "argon2";
 import jwt, { JwtPayload } from "jsonwebtoken";
-
+import { UserNotAuthenticatedError } from "./api/errors.js";
+import type { NextFunction, Request } from "express";
+import { config } from "./config.js";
 /**
 - iss is the issuer of the token. Set this to chirpy
 - sub is the subject of the token, which is the user's ID.
@@ -10,13 +12,39 @@ import jwt, { JwtPayload } from "jsonwebtoken";
 
 type payload = Pick<JwtPayload, "iss" | "sub" | "iat" | "exp">;
 
+export function getBearerToken (req: Request): string {
+    let authHeader = req.get("Authorization")
+    let authToken: string  = ""
+    console.log("getBearerToken \n")
+    console.log(req.body)
+    
+    if (authHeader) {
+        console.log("auth bearer ", authHeader.split(" ").slice(1).join() )
+        return authToken = authHeader.split(" ").slice(1).join()
+    } else {
+        throw new Error("Cannot find Authorization header")
+    }
+
+    /*const userID = validateJWT(authToken, config.api.JWTSecret)
+
+    if (userID) {
+        req.body.userID = userID
+        next()
+    } else {
+        throw new Error("Could not validate user")
+    }*/
+    
+   
+}
+
 export function makeJWT(userID: string, expiresIn: number, secret: string): string {
 
     const iat = Math.floor(Date.now() / 1000);
     const exp = iat + expiresIn;
+    const iss = "chirpy";
 
     const customPayload: payload = {
-        iss: "chirpy",
+        iss: iss,
         sub: userID,
         iat: iat,
         exp: exp
@@ -36,6 +64,7 @@ export function validateJWT(tokenString: string, secret: string ): string {
         }
     } catch(err) {
         console.log("token verification failed ", (err as Error).message)
+        throw new UserNotAuthenticatedError("Not authorized")
     }
     return ""
 };

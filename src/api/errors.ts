@@ -10,4 +10,10 @@ class NotFoundError extends Error {
     }
 }
 
-export { BadRequestError, NotFoundError };
+class UserNotAuthenticatedError extends Error {
+  constructor(message: string) {
+    super(message);
+  }
+}
+
+export { BadRequestError, NotFoundError, UserNotAuthenticatedError };
