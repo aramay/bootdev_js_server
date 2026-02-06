@@ -1,8 +1,26 @@
 import * as argon2 from "argon2";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { UserNotAuthenticatedError } from "./api/errors.js";
-import type { NextFunction, Request } from "express";
-import { config } from "./config.js";
+import type { Request } from "express";
+import { randomBytes } from "node:crypto";
+
+export function makeRefreshToken(): string {
+    // const buffer = 0;
+    // this is synchronous code
+    const buffer = randomBytes(256)
+    return buffer.toString("hex");
+    /*
+    let token: string = ''
+    randomBytes(256, (err: Error | null, buffer: Buffer) => {
+        if (err) throw err;
+        console.error(err)
+        console.log(`Async random data ${buffer.toString("hex")}`)
+        token = buffer.toString("hex")
+        // return;
+    })
+    return token;
+    */
+}
 /**
 - iss is the issuer of the token. Set this to chirpy
 - sub is the subject of the token, which is the user's ID.
@@ -16,10 +34,10 @@ export function getBearerToken (req: Request): string {
     let authHeader = req.get("Authorization")
     let authToken: string  = ""
     console.log("getBearerToken \n")
-    console.log(req.body)
+    console.log(" req.body ", req.body)
     
     if (authHeader) {
-        console.log("auth bearer ", authHeader.split(" ").slice(1).join() )
+        console.log("auth bearer found => ", authHeader.split(" ").slice(1).join() )
         return authToken = authHeader.split(" ").slice(1).join()
     } else {
         throw new Error("Cannot find Authorization header")

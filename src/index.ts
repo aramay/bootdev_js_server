@@ -18,12 +18,12 @@ import { drizzle } from "drizzle-orm/postgres-js";
 const migrationClient = postgres(config.db.dbURL , { max: 1 });
 await migrate(drizzle(migrationClient), config.db.migrationConfig);
 
-import { createChirps, createUser, getChirpByID, getChirps, getUserByEmail } from "./db/queries/users.js";
+import { createChirps, createUser, getChirpByID, getChirps, getUserByEmail, getUserFromRefreshToken, insertRefeshToken } from "./db/queries/users.js";
 import { deleteUser } from "./db/queries/delete.js";
-import { checkPasswordHash, getBearerToken, hashPassword, makeJWT, validateJWT } from "./auth.js";
-import { NewUser } from "./db/schema.js";
+import { checkPasswordHash, getBearerToken, hashPassword, makeJWT, makeRefreshToken, validateJWT } from "./auth.js";
+import { NewUser, refresh_tokens } from "./db/schema.js";
 import { handleCreateUser } from "./api/users.js";
-import { converStringToMS } from "./utils.js";
+import { converStringToMS, getDate } from "./utils.js";
 
 
 const PORT = 8080
@@ -56,12 +56,12 @@ app.get("/api/chirps/:chirpID", async (req: Request, res: Response, next: NextFu
     type Parameters = {
         chirpID: string;
     }
-
+    
     let { chirpID } = req.params as Parameters
     console.log("chirpID ", chirpID)
     try {
         let chirpByID = await getChirpByID(chirpID)
-
+        
         if (!chirpByID) {
             // res.status(404).send("not ok")
             return next(new NotFoundError(`Error - Could find chirp with ID - ${chirpByID}`))
@@ -117,7 +117,7 @@ console.error(`Error in sendFile ${err}`)
 */
 
 app.get("/api/chirps", async (_: Request, res: Response, next: NextFunction) => {
-
+    
     try {
         const chirps = await getChirps();
         res.status(200).json(chirps)
@@ -128,29 +128,29 @@ app.get("/api/chirps", async (_: Request, res: Response, next: NextFunction) => 
 })
 
 app.post("/api/chirps", async (req:Request, res:Response, next:NextFunction) => {
-    // console.log("req body", req.body)
-    type reqData = {
-        body: string;
-        userId: string
-    }
-
-    const authToken = getBearerToken(req)
-    
-    let params: reqData = req.body
-
-    let userID = validateJWT(authToken, config.api.JWTSecret)
-
-    if (userID) {
-        params.userId = userID
-    }
-    
-    console.log("params ", params)
-
-    if (!params.body || !params.userId) {
-        return next(new BadRequestError("Chirp body missing"))
-    }
-    
-    try {    
+    try {
+        type reqData = {
+            body: string;
+            userId: string
+        }
+        
+        const authToken = getBearerToken(req)
+        
+        let params: reqData = req.body
+        
+        let userID = validateJWT(authToken, config.api.JWTSecret)
+        
+        if (userID) {
+            params.userId = userID
+        }
+        
+        console.log("params ", params)
+        
+        if (!params.body || !params.userId) {
+            return next(new BadRequestError("Chirp body missing"))
+        }
+        
+        
         const chirp = await createChirps({ body: params.body, userId: params.userId })
         console.log("chirps ", chirp)
         
@@ -163,94 +163,158 @@ app.post("/api/chirps", async (req:Request, res:Response, next:NextFunction) => 
 
 app.post("/api/users", handleCreateUser)
 
-/*
-app.post("/api/users", async (req, res, next) => {
-    type parameter = {
-        email: string;
-        password: string;
-    }
 
-    let hashedPasswd = ""
-
-    const { email, password } = req.body as parameter
-    
-    if (!email || !password) {
-        throw new BadRequestError("Missing required field - email or password")
-    }
-
-    try {
-        hashedPasswd = await hashPassword(password)
-    } catch (err) {
-        console.log("Something went wrong while hashing the password")
-        next(err)
-    }
-    
-    try {
-        const user = await createUser({email, hashPassword: hashedPasswd})
-        // type tempUser = Omit<typeof user, "hashPassword">
-        console.log("results ", user)
-        res.status(201).json(user)
-    } catch(err) {
-        console.log("Error creating user ")
-        next(err)
-        
-    }
-})
-*/
 
 app.post("/api/login", async (req: Request, res: Response, next: NextFunction) => {
-    
-    type Parameters = {
-        email: string,
-        password: string,
-        expiresInSeconds?: number
-    }
-
-    console.log(req.body)
-    converStringToMS("1 h")
-
-    const { email, password, expiresInSeconds = converStringToMS("1 h")} = req.body as Parameters
-
-    let user = await getUserByEmail(email)
-
-    console.log("user ", user)
-
-    const verified = await checkPasswordHash(user.hashPassword, password)
-    
-    if (!user || !verified) {
-        res.status(401).send("Incorrect email or password")
-    } 
-    else {
+    try {
+        
+        type Parameters = {
+            email: string,
+            password: string,
+            expiresInSeconds: number
+        }
+        
+        console.log(req.body)
+        converStringToMS("1 h")
+        
+        const { email, password, expiresInSeconds = converStringToMS("1 h")} = req.body as Parameters
+        
+        let user = await getUserByEmail(email)
+        
+        console.log("user ", user)
+        
+        const verified = await checkPasswordHash(user.hashPassword, password)
+        
+        if (!user || !verified) {
+            return res.status(401).send("Incorrect email or password")
+        }
+        
         const token = makeJWT(user.id, expiresInSeconds, config.api.JWTSecret) 
+        // 256-bit hex string
+        const refreshToken = makeRefreshToken()
+        console.log("refresh_token ", refreshToken)
+        
+        // save to DB: token, user_id, expires_at (+60 days)
+        getDate()
+        await insertRefeshToken({
+            token: refreshToken,
+            userId: user.id
+            // this is why it was not updating date field
+            // big mistake
+            // expires_at: new Date() 
+        })
+        
         res.status(200).json({
             id: user.id,
             createdAt: user.createdAt,
             updatedAt: user.updatedAt,
             email: user.email,
-            token: token
+            token: token,
+            refreshToken: refreshToken
         })
-        // next(user)
+    } catch (err) {
+        console.error("Login Error ", err)
+        return res.status(500).json({error: "Internal server error"})
     }
 
-    // console.log(user)
-    // try {
-    //     const verified = await checkPasswordHash(user.hashPassword, password)
-    //     console.log(verified)
-    // } catch (err) {
-    //     console.log("Error verifying password")
-    // }
+})
 
-   
+app.post("/api/refresh", async (req: Request, res: Response, next: NextFunction) => {
+    
+    try {
 
-    // res.status(200).json(user)
+        // getDate()
+        const now = new Date()
+        const refreshToken = getBearerToken(req)
+        
+        let row = await getUserFromRefreshToken(refreshToken)
+        
+        console.log(" user from refresh token \n", row);
+        //if it doesn't exist, or if it's expired or revoked, respond with a 401 status code. // Otherwise, respond with a 200 code and this shape:
+        
+        if (
+            !row ||
+            !row.expires_at ||
+            row.expires_at <= now || 
+            row.revoked_at
+        ) {
+            res.status(401).end();
 
-     // try {
-    //     user 
-    // } catch(err) {
-    //     next(err)
-    // }
+        } else {
+            const newAccessToken = makeJWT(row.userId, converStringToMS("1 h"), config.api.JWTSecret)
+            res.status(200).json({token: newAccessToken})
+        }
+        
+        // res.send("ok")
+    } catch(err) {
+        console.log("Failed to get refreshTokens")
+        next(err)
+    }
     
 })
+
+
+function errorHandler(
+    err: Error,
+    _: Request,
+    res: Response,
+    __: NextFunction
+) {
+    if (err instanceof BadRequestError) {
+        console.log("BadRequestError \n")
+        res.status(400).json({error: err.message})
+    }
+    console.log("An unexpected error occured \n")
+    if (!res.headersSent) {
+        console.log("Error - !res.headersSent ", err.message)
+        return res.status(500).json({ 
+            error: "An unexpected server error occurred." 
+        });
+    }
+    console.log("Error ", err.message)
+    res.status(500).json({error: "An unexpected error occured"})
+}
+app.use(errorHandler)
+
+app.listen(PORT, () => {
+    console.log(`Server listening on Port ${PORT}`)
+})
+
+/*
+
+app.post("/api/users", async (req, res, next) => {
+type parameter = {
+email: string;
+password: string;
+}
+
+let hashedPasswd = ""
+
+const { email, password } = req.body as parameter
+
+if (!email || !password) {
+throw new BadRequestError("Missing required field - email or password")
+}
+
+try {
+hashedPasswd = await hashPassword(password)
+} catch (err) {
+console.log("Something went wrong while hashing the password")
+next(err)
+}
+
+try {
+const user = await createUser({email, hashPassword: hashedPasswd})
+// type tempUser = Omit<typeof user, "hashPassword">
+console.log("results ", user)
+res.status(201).json(user)
+} catch(err) {
+console.log("Error creating user ")
+next(err)
+
+}
+})
+*/
 
 /*
 app.post("/api/validate_chirp", (req:Request, res:Response, next: NextFunction) => {
@@ -321,31 +385,3 @@ next(err)
 })
 })
 */
-
-
-function errorHandler(
-    err: Error,
-    _: Request,
-    res: Response,
-    __: NextFunction
-) {
-    if (err instanceof BadRequestError) {
-        console.log("BadRequestError \n")
-        res.status(400).json({error: err.message})
-    }
-    console.log("An unexpected error occured \n")
-    if (!res.headersSent) {
-        console.log("Error - !res.headersSent ", err.message)
-        return res.status(500).json({ 
-            error: "An unexpected server error occurred." 
-        });
-    }
-    console.log("Error ", err.message)
-    res.status(500).json({error: "An unexpected error occured"})
-}
-app.use(errorHandler)
-
-app.listen(PORT, () => {
-    console.log(`Server listening on Port ${PORT}`)
-})
-

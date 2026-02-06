@@ -1,7 +1,29 @@
 import { eq } from "drizzle-orm";
 import { db } from "../index.js";
-import { NewChirp, chirps, NewUser, users } from "../schema.js";
+import { NewChirp, chirps, NewUser, users, NewRefreshTokens, refresh_tokens } from "../schema.js";
 
+export async function getUserFromRefreshToken(refreshToken: string) {
+    const [result] = await db
+        .select()
+        .from(refresh_tokens)
+        .where(eq(refresh_tokens.token, refreshToken))
+    
+    return result
+}
+
+export async function insertRefeshToken(token: NewRefreshTokens) {
+    // console.log("teoken insertRefreshTOken ", token)
+    const [result] = await db
+        .insert(refresh_tokens)
+        .values({
+            userId: token.userId,
+            token: token.token
+        })
+        // .onConflictDoNothing()
+        .returning()
+
+    return result;
+}
 export async function createUser(user: NewUser) {
 
     const [result] = await db
@@ -20,7 +42,10 @@ export async function createChirps(chirp: NewChirp) {
     console.log("chirp query ", chirp)
     const [result] = await db
         .insert(chirps)
-        .values(chirp)
+        .values({
+            body: chirp.body,
+            userId: chirp.userId
+        })
         .onConflictDoNothing()
         .returning();
 
