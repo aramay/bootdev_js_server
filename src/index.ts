@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { config } from "./config.js";
 import type { NextFunction, Request, Response } from "express";
-import { BadRequestError, NotFoundError } from "./api/errors.js";
+import { BadRequestError, NotFoundError, UserNotAuthenticatedError } from "./api/errors.js";
 
 import postgres from "postgres";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
@@ -18,7 +18,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 const migrationClient = postgres(config.db.dbURL , { max: 1 });
 await migrate(drizzle(migrationClient), config.db.migrationConfig);
 
-import { createChirps, createUser, getChirpByID, getChirps, getUserByEmail, getUserFromRefreshToken, insertRefeshToken, revokeToken } from "./db/queries/users.js";
+import { createChirps, createUser, getChirpByID, getChirps, getUserByEmail, getUserFromRefreshToken, insertRefeshToken, revokeToken, updateUser } from "./db/queries/users.js";
 import { deleteUser } from "./db/queries/delete.js";
 import { checkPasswordHash, getBearerToken, hashPassword, makeJWT, makeRefreshToken, validateJWT } from "./auth.js";
 import { NewUser, refresh_tokens } from "./db/schema.js";
@@ -277,6 +277,58 @@ app.post("/api/revoke", async (req: Request, res: Response, next: NextFunction) 
     } catch (err) {
         console.log("Revoke token API failed")
         next(err)
+    }
+    
+})
+
+app.put("/api/users", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+
+        type reqData = {
+            email: string;
+            password: string;
+        }
+
+        const { email, password } = req.body as reqData;
+
+        if (!email || !password) {
+            throw new BadRequestError("Email or password missing")
+        }
+
+        // get access token from header
+        const accessToken = getBearerToken(req)
+
+        // res 401 if it is missing
+        if (!accessToken) {
+            return res.status(401).end()
+        }
+
+        const user = validateJWT(accessToken, config.api.JWTSecret)
+
+        console.log("user in PUT ", user)
+        if (!user) {
+            return res.status(401).end()
+            
+        } 
+        const hashedPassword = await hashPassword(password)
+        
+        const updatedUser = await updateUser({
+            id: user,
+            email,
+            hashedPassword: hashedPassword
+        })
+        console.log("updatedUser ", updatedUser)
+        return res.status(200).json(updatedUser)
+        
+
+    } catch (err) {
+        console.log("Unable to update User")
+        if (err instanceof UserNotAuthenticatedError) {
+            return res.status(401).end()
+        } else {
+            console.log("type error ", typeof err)
+            return res.status(500).end();
+        }
     }
     
 })

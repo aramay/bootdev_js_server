@@ -35,6 +35,22 @@ export async function insertRefeshToken(token: NewRefreshTokens) {
 
     return result;
 }
+
+export async function updateUser({id, email, hashedPassword}: 
+    {id: string, email: string, hashedPassword: string}) 
+    {
+        const [result] = await db.update(users)
+        .set({
+            email,
+            hashPassword: hashedPassword
+        })
+        .where(eq(users.id, id))
+        .returning()
+        
+        const { hashPassword, ...userWithoutHashedPassword } = result
+        return userWithoutHashedPassword ?? null;
+    }
+
 export async function createUser(user: NewUser) {
 
     const [result] = await db

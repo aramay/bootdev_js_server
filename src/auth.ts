@@ -21,12 +21,7 @@ export function makeRefreshToken(): string {
     return token;
     */
 }
-/**
-- iss is the issuer of the token. Set this to chirpy
-- sub is the subject of the token, which is the user's ID.
-- iat is the time the token was issued. Use Math.floor(Date.now() / 1000) to get the current time in seconds.
-- exp is the time the token expires. Use iat + expiresIn to set the expiration
- */
+
 
 type payload = Pick<JwtPayload, "iss" | "sub" | "iat" | "exp">;
 
@@ -40,7 +35,7 @@ export function getBearerToken (req: Request): string {
         console.log("auth bearer found => ", authHeader.split(" ").slice(1).join() )
         return authToken = authHeader.split(" ").slice(1).join()
     } else {
-        throw new Error("Cannot find Authorization header")
+        throw new UserNotAuthenticatedError("Cannot find Authorization header")
     }
 
     /*const userID = validateJWT(authToken, config.api.JWTSecret)
@@ -72,19 +67,26 @@ export function makeJWT(userID: string, expiresIn: number, secret: string): stri
     return token;
 }
 
-
+/**
+- iss is the issuer of the token. Set this to chirpy
+- sub is the subject of the token, which is the user's ID.
+- iat is the time the token was issued. Use Math.floor(Date.now() / 1000) to get the current time in seconds.
+- exp is the time the token expires. Use iat + expiresIn to set the expiration
+ */
 export function validateJWT(tokenString: string, secret: string ): string {
     try {
         const result = jwt.verify(tokenString, secret, { issuer: "chirpy"}) as JwtPayload
         console.log("sub ", result)
-        if (result.sub) {
-            return result.sub
+        // return userId
+        if (!result.sub) {
+            throw new UserNotAuthenticatedError("Not authorized")
         }
+        return result.sub;
+        // return new UserNotAuthenticatedError("Malformed token")
     } catch(err) {
         console.log("token verification failed ", (err as Error).message)
         throw new UserNotAuthenticatedError("Not authorized")
     }
-    return ""
 };
 
 
