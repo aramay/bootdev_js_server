@@ -2,6 +2,17 @@ import { eq } from "drizzle-orm";
 import { db } from "../index.js";
 import { NewChirp, chirps, NewUser, users, NewRefreshTokens, refresh_tokens } from "../schema.js";
 
+export async function revokeToken({token, revoked_at} : 
+    {token: string, revoked_at: Date}) 
+    {
+        const [result] = await db.update(refresh_tokens)
+        .set({revoked_at})
+        .where(eq(refresh_tokens.token, token))
+        .returning({ updatedId: refresh_tokens.token})
+        
+        return result ?? null;
+    }
+
 export async function getUserFromRefreshToken(refreshToken: string) {
     const [result] = await db
         .select()

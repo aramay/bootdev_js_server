@@ -18,7 +18,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 const migrationClient = postgres(config.db.dbURL , { max: 1 });
 await migrate(drizzle(migrationClient), config.db.migrationConfig);
 
-import { createChirps, createUser, getChirpByID, getChirps, getUserByEmail, getUserFromRefreshToken, insertRefeshToken } from "./db/queries/users.js";
+import { createChirps, createUser, getChirpByID, getChirps, getUserByEmail, getUserFromRefreshToken, insertRefeshToken, revokeToken } from "./db/queries/users.js";
 import { deleteUser } from "./db/queries/delete.js";
 import { checkPasswordHash, getBearerToken, hashPassword, makeJWT, makeRefreshToken, validateJWT } from "./auth.js";
 import { NewUser, refresh_tokens } from "./db/schema.js";
@@ -157,7 +157,8 @@ app.post("/api/chirps", async (req:Request, res:Response, next:NextFunction) => 
         return res.status(201).json(chirp)
     } catch(err) {
         console.log("Something went wrong on our end - /api/chirps")
-        next(err)
+        res.status(401).end();
+        // next(err)
     }
 })
 
@@ -216,13 +217,13 @@ app.post("/api/login", async (req: Request, res: Response, next: NextFunction) =
         console.error("Login Error ", err)
         return res.status(500).json({error: "Internal server error"})
     }
-
+    
 })
 
 app.post("/api/refresh", async (req: Request, res: Response, next: NextFunction) => {
     
     try {
-
+        
         // getDate()
         const now = new Date()
         const refreshToken = getBearerToken(req)
@@ -239,7 +240,7 @@ app.post("/api/refresh", async (req: Request, res: Response, next: NextFunction)
             row.revoked_at
         ) {
             res.status(401).end();
-
+            
         } else {
             const newAccessToken = makeJWT(row.userId, converStringToMS("1 h"), config.api.JWTSecret)
             res.status(200).json({token: newAccessToken})
@@ -253,6 +254,32 @@ app.post("/api/refresh", async (req: Request, res: Response, next: NextFunction)
     
 })
 
+app.post("/api/revoke", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const refreshToken = getBearerToken(req)
+
+        // revoke token
+        
+        let isRevoked = await revokeToken({
+            token: refreshToken, 
+            revoked_at: new Date()
+        })
+
+        console.log("revoked " , isRevoked)
+        /**this does not work, cuz we don't have userId */
+        // const isRevoked = await revokeToken({
+        //     token: refreshToken,
+        //     revoked_at: new Date()
+        // })
+
+        // res.status(204).send("ok")
+        res.status(204).end();
+    } catch (err) {
+        console.log("Revoke token API failed")
+        next(err)
+    }
+    
+})
 
 function errorHandler(
     err: Error,
