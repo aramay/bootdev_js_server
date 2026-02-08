@@ -18,7 +18,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 const migrationClient = postgres(config.db.dbURL , { max: 1 });
 await migrate(drizzle(migrationClient), config.db.migrationConfig);
 
-import { createChirps, createUser, getChirpByID, getChirps, getUserByEmail, getUserFromRefreshToken, insertRefeshToken, revokeToken, updateUser } from "./db/queries/users.js";
+import { createChirps, createUser, deleteChirp, getChirpByID, getChirps, getUserByEmail, getUserFromRefreshToken, insertRefeshToken, revokeToken, updateUser } from "./db/queries/users.js";
 import { deleteUser } from "./db/queries/delete.js";
 import { checkPasswordHash, getBearerToken, hashPassword, makeJWT, makeRefreshToken, validateJWT } from "./auth.js";
 import { NewUser, refresh_tokens } from "./db/schema.js";
@@ -52,26 +52,6 @@ app.get("/api/reset", resetMetricsInc);
 // console.log("__dirname", path.join( __dirname, "../src/app/", "admin.html"));
 // console.log("__dirname /src/app", { root: path.join(__dirname, '../src/app/') });
 
-app.get("/api/chirps/:chirpID", async (req: Request, res: Response, next: NextFunction) => {
-    type Parameters = {
-        chirpID: string;
-    }
-    
-    let { chirpID } = req.params as Parameters
-    console.log("chirpID ", chirpID)
-    try {
-        let chirpByID = await getChirpByID(chirpID)
-        
-        if (!chirpByID) {
-            // res.status(404).send("not ok")
-            return next(new NotFoundError(`Error - Could find chirp with ID - ${chirpByID}`))
-        }
-        res.status(200).json(chirpByID)
-    } catch(err) {
-        console.log("Error getting a chirps - /api/chirp/:chirdID")
-        next(err)
-    }
-})
 
 app.get("/admin/metrics", (req, res) => {
     
@@ -120,12 +100,92 @@ app.get("/api/chirps", async (_: Request, res: Response, next: NextFunction) => 
     
     try {
         const chirps = await getChirps();
+
+        if (!chirps) {
+            throw new Error("No Chirps fond in DB")
+        }
         res.status(200).json(chirps)
     } catch(err) {
         console.log("Error getting chirps - /api/chirps")
         next(err)
     }
 })
+
+app.get("/api/chirps/:chirpID", async (req: Request, res: Response, next: NextFunction) => {
+    type Parameters = {
+        chirpID: string;
+    }
+    
+    let { chirpID } = req.params as Parameters
+    console.log("chirpID ", chirpID)
+    try {
+        let chirpByID = await getChirpByID(chirpID)
+        
+        if (!chirpByID) {
+            // res.status(404).send("not ok")
+            // return next(new NotFoundError(`Error - Could find chirp with ID - ${chirpByID}`))
+            return res.status(404).end()
+        }
+        res.status(200).json(chirpByID)
+    } catch(err) {
+        console.log("Error getting a chirps - /api/chirp/:chirdID")
+        next(err)
+    }
+})
+
+
+app.delete("/api/chirps/:chirpId", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { chirpId } = req.params
+        
+        console.log("chirpId params" , chirpId)
+
+        const authToken = getBearerToken(req)
+
+        if (!authToken) {
+            // return next(new BadRequestError(""))
+            return res.status(401).end()
+        }
+
+        const userIdFromToken = validateJWT(authToken, config.api.JWTSecret)
+
+        if (!userIdFromToken) {
+            return res.status(403).end()
+        }
+
+        console.log("userIdFromToken ", userIdFromToken)
+
+        const chirp = await getChirpByID(chirpId)
+
+        console.log("does chirp exits - 2nd delete ", chirp)
+
+        if (!chirp) {
+            return res.status(404).end()
+        }
+
+        console.log("chirp found ", chirp)
+
+        if (chirp.userId !== userIdFromToken) {
+            return res.status(403).end()
+        }
+        const row = await deleteChirp({
+            chirpId
+        })
+
+        console.log("deleted row ", row)
+        
+        return res.status(204).send("ok")
+
+    } catch (err) {
+        console.log("Chirps DELETE path not working")
+        if (err instanceof UserNotAuthenticatedError) {
+            return res.status(401).end()
+        } else {
+            next(err)
+        }
+    }    
+})
+
 
 app.post("/api/chirps", async (req:Request, res:Response, next:NextFunction) => {
     try {
@@ -281,7 +341,7 @@ app.post("/api/revoke", async (req: Request, res: Response, next: NextFunction) 
     
 })
 
-app.put("/api/users", async (req: Request, res: Response, next: NextFunction) => {
+app.put("/api/users", async (req: Request, res: Response) => {
     try {
 
         type reqData = {
@@ -332,6 +392,7 @@ app.put("/api/users", async (req: Request, res: Response, next: NextFunction) =>
     }
     
 })
+
 
 function errorHandler(
     err: Error,
