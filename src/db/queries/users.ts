@@ -93,9 +93,20 @@ export async function getChirpByID(chirdID: string) {
         .from(chirps)
         .where(eq(chirps.id, chirdID))
 
-        console.log("result ", result)
     return result;
 }
+
+export async function deleteChirp({chirpId}: 
+    {chirpId: string}) 
+    {
+        
+        const [result] = await db
+        .delete(chirps)
+        .where(eq(chirps.id, chirpId))
+        .returning()
+        
+        return result
+    }
 
 export async function getUserByEmail(email: string) {
     const [result] = await db
