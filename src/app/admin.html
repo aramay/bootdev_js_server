@@ -1,0 +1,31 @@
+<html>
+    
+  <body>
+    <h1>Welcome, Chirpy Admin</h1>
+    <p id="chirpyCount">Chirpy has been visited NUM times!</p>
+
+    <script type="module">
+        document.getElementById("chirpyCount").textContent = `Chirpy has been visited ${0} times!`
+
+        const getMetrics = async () => {
+
+            const res = await fetch(
+                "/api/metrics",
+                {
+                    method: "GET",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                },
+            );
+            return res.json();
+        }
+
+        const results = await getMetrics()
+        console.log("results ", results)
+
+        document.getElementById("chirpyCount").textContent = `Chirpy has been visited ${results.Hits} times!`
+        
+    </script>
+  </body>
+</html>

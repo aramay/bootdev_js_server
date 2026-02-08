@@ -1,0 +1,97 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1769213578212,
+      "tag": "0000_dear_toad",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1769298435086,
+      "tag": "0001_magical_white_tiger",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1769298500906,
+      "tag": "0002_cynical_reavers",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1769298707524,
+      "tag": "0003_strange_cardiac",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1769299337192,
+      "tag": "0004_dry_psynapse",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1769299592239,
+      "tag": "0005_shiny_abomination",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1769299647611,
+      "tag": "0006_daffy_captain_america",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1769301613640,
+      "tag": "0007_swift_karnak",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1769301660954,
+      "tag": "0008_thankful_vengeance",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1769980082025,
+      "tag": "0009_amazing_rage",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1770003776112,
+      "tag": "0010_left_scarlet_spider",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1770067714190,
+      "tag": "0011_fair_ronan",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1770167651564,
+      "tag": "0012_rich_harry_osborn",
+      "breakpoints": true
+    }
+  ]
+}

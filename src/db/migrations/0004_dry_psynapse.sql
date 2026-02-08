@@ -1,0 +1,1 @@
+ALTER TABLE "users" ALTER COLUMN "hash_password" SET DEFAULT 'unset';
