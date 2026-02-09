@@ -20,7 +20,7 @@ await migrate(drizzle(migrationClient), config.db.migrationConfig);
 
 import { createChirps, createUser, deleteChirp, getChirpByID, getChirps, getUserByEmail, getUserFromRefreshToken, insertRefeshToken, revokeToken, updateUser, upgradeUserMembership } from "./db/queries/users.js";
 import { deleteUser } from "./db/queries/delete.js";
-import { checkPasswordHash, getBearerToken, hashPassword, makeJWT, makeRefreshToken, validateJWT } from "./auth.js";
+import { checkPasswordHash, getAPIKey, getBearerToken, hashPassword, makeJWT, makeRefreshToken, validateJWT } from "./auth.js";
 import { NewUser, refresh_tokens } from "./db/schema.js";
 import { handleCreateUser } from "./api/users.js";
 import { converStringToMS, getDate } from "./utils.js";
@@ -197,6 +197,11 @@ app.post("/api/polka/webhooks", async (req: Request, res: Response, next: NextFu
             }
         }
 
+        const polkaAPIKey = getAPIKey(req)
+
+        if (polkaAPIKey !== config.api.PolkaSecret) {
+            return res.status(401).end()
+        }
         const { event, data } = req.body as reqData
         //the event is anything other than user.upgraded - res 204 status code 
         if (event !== "user.upgraded") {
@@ -218,6 +223,9 @@ app.post("/api/polka/webhooks", async (req: Request, res: Response, next: NextFu
 
     } catch(err) {
         console.log("polka/webhook handler not working")
+        if (err instanceof UserNotAuthenticatedError) {
+            return res.status(401).end()
+        }
         next(err)
     }
 })
