@@ -26,6 +26,7 @@ type APIConfig = {
     port: Number;
     env: string;
     JWTSecret: string;
+    PolkaSecret: string;
 };
 
 type Config = {
@@ -38,7 +39,8 @@ export const config: Config = {
         fileServerHits: 0,
         port: Number(envOrThrow("PORT")),
         env: envOrThrow("PLATFORM"),
-        JWTSecret: envOrThrow("JWT_SECRET")
+        JWTSecret: envOrThrow("JWT_SECRET"),
+        PolkaSecret: envOrThrow("POLKA_SECRET")
     },
     db: {
         dbURL: envOrThrow("DB_URL"),

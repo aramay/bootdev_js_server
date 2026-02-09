@@ -4,6 +4,20 @@ import { UserNotAuthenticatedError } from "./api/errors.js";
 import type { Request } from "express";
 import { randomBytes } from "node:crypto";
 
+export function getAPIKey(req: Request): string {
+    
+    const authHeader = req.get("Authorization")
+    let PolkaAPIKey: string = ""
+
+    if (authHeader) {
+        console.log("Polka auth header ", authHeader.split(" ").slice(1).join())
+        return PolkaAPIKey = authHeader.split(" ").slice(1).join()
+
+    } else {
+        throw new UserNotAuthenticatedError("Cannot find Polka API key")
+    }
+}
+
 export function makeRefreshToken(): string {
     // const buffer = 0;
     // this is synchronous code

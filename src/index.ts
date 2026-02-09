@@ -18,9 +18,9 @@ import { drizzle } from "drizzle-orm/postgres-js";
 const migrationClient = postgres(config.db.dbURL , { max: 1 });
 await migrate(drizzle(migrationClient), config.db.migrationConfig);
 
-import { createChirps, createUser, deleteChirp, getChirpByID, getChirps, getUserByEmail, getUserFromRefreshToken, insertRefeshToken, revokeToken, updateUser } from "./db/queries/users.js";
+import { createChirps, createUser, deleteChirp, getChirpByID, getChirps, getUserByEmail, getUserFromRefreshToken, insertRefeshToken, revokeToken, updateUser, upgradeUserMembership } from "./db/queries/users.js";
 import { deleteUser } from "./db/queries/delete.js";
-import { checkPasswordHash, getBearerToken, hashPassword, makeJWT, makeRefreshToken, validateJWT } from "./auth.js";
+import { checkPasswordHash, getAPIKey, getBearerToken, hashPassword, makeJWT, makeRefreshToken, validateJWT } from "./auth.js";
 import { NewUser, refresh_tokens } from "./db/schema.js";
 import { handleCreateUser } from "./api/users.js";
 import { converStringToMS, getDate } from "./utils.js";
@@ -186,6 +186,49 @@ app.delete("/api/chirps/:chirpId", async (req: Request, res: Response, next: Nex
     }    
 })
 
+app.post("/api/polka/webhooks", async (req: Request, res: Response, next: NextFunction) => {
+    
+    try {
+
+        type reqData = {
+            event: string;
+            data: {
+                userId: string;
+            }
+        }
+
+        const polkaAPIKey = getAPIKey(req)
+
+        if (polkaAPIKey !== config.api.PolkaSecret) {
+            return res.status(401).end()
+        }
+        const { event, data } = req.body as reqData
+        //the event is anything other than user.upgraded - res 204 status code 
+        if (event !== "user.upgraded") {
+            return res.status(204).end()
+        }
+
+        // If the event is user.upgraded, 
+        // update the user in the database, and mark - they are a Chirpy Red member.
+        const isUpgradedUser = await upgradeUserMembership(data.userId)
+        // user is upgraded successfully, respond with 204 status code 
+        // and empty response body
+        console.log("upgraded user ", isUpgradedUser)
+        
+        if(!isUpgradedUser){
+            return res.status(404).end()
+        }
+
+        res.status(204).end();
+
+    } catch(err) {
+        console.log("polka/webhook handler not working")
+        if (err instanceof UserNotAuthenticatedError) {
+            return res.status(401).end()
+        }
+        next(err)
+    }
+})
 
 app.post("/api/chirps", async (req:Request, res:Response, next:NextFunction) => {
     try {
@@ -270,6 +313,7 @@ app.post("/api/login", async (req: Request, res: Response, next: NextFunction) =
             createdAt: user.createdAt,
             updatedAt: user.updatedAt,
             email: user.email,
+            isChirpyRed: user.isChirpyRed,
             token: token,
             refreshToken: refreshToken
         })
