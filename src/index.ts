@@ -18,10 +18,9 @@ import { drizzle } from "drizzle-orm/postgres-js";
 const migrationClient = postgres(config.db.dbURL , { max: 1 });
 await migrate(drizzle(migrationClient), config.db.migrationConfig);
 
-import { createChirps, createUser, deleteChirp, getChirpByID, getChirps, getUserByEmail, getUserFromRefreshToken, insertRefeshToken, revokeToken, updateUser, upgradeUserMembership } from "./db/queries/users.js";
+import { createChirps, createUser, deleteChirp, getChirpByAuthor, getChirpByID, getChirps, getUserByEmail, getUserFromRefreshToken, insertRefeshToken, revokeToken, updateUser, upgradeUserMembership } from "./db/queries/users.js";
 import { deleteUser } from "./db/queries/delete.js";
 import { checkPasswordHash, getAPIKey, getBearerToken, hashPassword, makeJWT, makeRefreshToken, validateJWT } from "./auth.js";
-import { NewUser, refresh_tokens } from "./db/schema.js";
 import { handleCreateUser } from "./api/users.js";
 import { converStringToMS, getDate } from "./utils.js";
 
@@ -96,15 +95,29 @@ console.error(`Error in sendFile ${err}`)
 })
 */
 
-app.get("/api/chirps", async (_: Request, res: Response, next: NextFunction) => {
+app.get("/api/chirps", async (req: Request, res: Response, next: NextFunction) => {
     
     try {
+
+        const authorId: string = req.query.authorId as string;
+
+        console.log("authorId ", authorId)
+        console.log("req.qury ", req.query)
+        // If the authorId query parameter is provided, 
+        // the endpoint should return only the chirps for that author.
+        if (authorId) {
+            const chirps = await getChirpByAuthor(authorId)
+            return res.status(200).json(chirps)
+        }
+        
+        // If the authorId query parameter is not provided,
+        // the endpoint should return all chirps as it did before.
         const chirps = await getChirps();
 
         if (!chirps) {
             throw new Error("No Chirps fond in DB")
         }
-        res.status(200).json(chirps)
+        return res.status(200).json(chirps)
     } catch(err) {
         console.log("Error getting chirps - /api/chirps")
         next(err)
@@ -112,13 +125,14 @@ app.get("/api/chirps", async (_: Request, res: Response, next: NextFunction) => 
 })
 
 app.get("/api/chirps/:chirpID", async (req: Request, res: Response, next: NextFunction) => {
-    type Parameters = {
-        chirpID: string;
-    }
     
-    let { chirpID } = req.params as Parameters
-    console.log("chirpID ", chirpID)
     try {
+        type Parameters = {
+            chirpID: string;
+        }
+        
+        let { chirpID } = req.params as Parameters
+        console.log("chirpID ", chirpID)
         let chirpByID = await getChirpByID(chirpID)
         
         if (!chirpByID) {
