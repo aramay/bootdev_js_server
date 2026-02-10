@@ -125,6 +125,9 @@ app.get("/api/chirps", async (req: Request, res: Response, next: NextFunction) =
             throw new Error("No Chirps fond in DB")
         }
 
+        chirps.sort((a, b) => {
+            return (a.createdAt.getTime() - b.createdAt.getTime()) * multiplier;
+        })
 
     } catch(err) {
         console.log("Error getting chirps - /api/chirps")
