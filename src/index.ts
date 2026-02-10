@@ -103,7 +103,9 @@ app.get("/api/chirps", async (req: Request, res: Response, next: NextFunction) =
 
         const authorId: string = req.query.authorId as string;
         const sortOrder: string = (req.query.sort as string) || "asc";
-        let sortedChirp: NewChirp[]
+
+        // decide direction once
+        const multiplier = sortOrder === "desc" ? -1 : 1;
 
         console.log("authorId ", authorId)
         console.log("req.qury ", req.query)
