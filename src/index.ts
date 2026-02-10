@@ -126,26 +126,6 @@ app.get("/api/chirps", async (req: Request, res: Response, next: NextFunction) =
         }
 
 
-        if (sortOrder === "desc") {
-            sortedChirp = chirps.sort((firstItem, secondItem) => secondItem.createdAt.getTime() - firstItem.createdAt.getTime())
-            
-
-            console.log("sorted asc ", sortedChirp)
-
-        } else {
-            // return res.status(200).json(
-            //     chirps.sort((secondItem, firstItem) => secondItem.createdAt.getTime() - firstItem.createdAt.getTime())
-            // )
-
-            sortedChirp = chirps.sort((firstItem, secondItem) => firstItem.createdAt.getTime() - secondItem.createdAt.getTime())
-
-            console.log("sorted desc ", sortedChirp)
-            
-            
-        }
-        // sort chirps - asc - desc
-
-        return res.status(200).json(sortedChirp)
     } catch(err) {
         console.log("Error getting chirps - /api/chirps")
         next(err)
