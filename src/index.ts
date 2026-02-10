@@ -23,6 +23,7 @@ import { deleteUser } from "./db/queries/delete.js";
 import { checkPasswordHash, getAPIKey, getBearerToken, hashPassword, makeJWT, makeRefreshToken, validateJWT } from "./auth.js";
 import { handleCreateUser } from "./api/users.js";
 import { converStringToMS, getDate } from "./utils.js";
+import { NewChirp } from "./db/schema.js";
 
 
 const PORT = 8080
@@ -97,9 +98,12 @@ console.error(`Error in sendFile ${err}`)
 
 app.get("/api/chirps", async (req: Request, res: Response, next: NextFunction) => {
     
+    
     try {
 
         const authorId: string = req.query.authorId as string;
+        const sortOrder: string = (req.query.sort as string) || "asc";
+        let sortedChirp: NewChirp[]
 
         console.log("authorId ", authorId)
         console.log("req.qury ", req.query)
@@ -114,10 +118,32 @@ app.get("/api/chirps", async (req: Request, res: Response, next: NextFunction) =
         // the endpoint should return all chirps as it did before.
         const chirps = await getChirps();
 
+        console.log("getChirps() ", chirps)
         if (!chirps) {
             throw new Error("No Chirps fond in DB")
         }
-        return res.status(200).json(chirps)
+
+
+        if (sortOrder === "desc") {
+            sortedChirp = chirps.sort((firstItem, secondItem) => secondItem.createdAt.getTime() - firstItem.createdAt.getTime())
+            
+
+            console.log("sorted asc ", sortedChirp)
+
+        } else {
+            // return res.status(200).json(
+            //     chirps.sort((secondItem, firstItem) => secondItem.createdAt.getTime() - firstItem.createdAt.getTime())
+            // )
+
+            sortedChirp = chirps.sort((firstItem, secondItem) => firstItem.createdAt.getTime() - secondItem.createdAt.getTime())
+
+            console.log("sorted desc ", sortedChirp)
+            
+            
+        }
+        // sort chirps - asc - desc
+
+        return res.status(200).json(sortedChirp)
     } catch(err) {
         console.log("Error getting chirps - /api/chirps")
         next(err)
