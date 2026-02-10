@@ -100,13 +100,13 @@ app.get("/api/chirps", async (req: Request, res: Response, next: NextFunction) =
     
     
     try {
-
+        
         const authorId: string = req.query.authorId as string;
         const sortOrder: string = (req.query.sort as string) || "asc";
-
+        
         // decide direction once
         const multiplier = sortOrder === "desc" ? -1 : 1;
-
+        
         console.log("authorId ", authorId)
         console.log("req.qury ", req.query)
         // If the authorId query parameter is provided, 
@@ -119,16 +119,17 @@ app.get("/api/chirps", async (req: Request, res: Response, next: NextFunction) =
         // If the authorId query parameter is not provided,
         // the endpoint should return all chirps as it did before.
         const chirps = await getChirps();
-
+        
         console.log("getChirps() ", chirps)
         if (!chirps) {
             throw new Error("No Chirps fond in DB")
         }
-
+        
         chirps.sort((a, b) => {
             return (a.createdAt.getTime() - b.createdAt.getTime()) * multiplier;
         })
-
+        
+        return res.status(200).json(chirps)
     } catch(err) {
         console.log("Error getting chirps - /api/chirps")
         next(err)
