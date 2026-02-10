@@ -129,3 +129,12 @@ export async function upgradeUserMembership(userId: string) {
 
     return userWithoutHashedPassword;
 }
+
+export async function getChirpByAuthor(authorId: string) {
+    const result = await db
+        .select()
+        .from(chirps)
+        .where(eq(chirps.userId, authorId))
+
+    return result;
+}
